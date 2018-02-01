@@ -2,9 +2,15 @@ package org.poem.common.helper;
 
 import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Maps;
+import org.apache.commons.fileupload.FileUpload;
+import org.apache.commons.fileupload.FileUploadException;
+import org.poem.common.enums.LargeFileUploadAction;
+import org.poem.common.exceptpion.ParameterMissException;
 import org.poem.entity.InitializationConfiguration;
+import org.poem.entity.upload.FileUploadConfiguration;
 import org.poem.entity.upload.PrepareUploadJson;
 import org.poem.utils.RedisUtils;
+import org.poem.utils.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -144,4 +150,39 @@ public class LargeFileUploaderHelper {
         }
     }
 
+    /**
+     * 组装上传的参数
+     * @return
+     */
+    public FileUploadConfiguration extractFileUploadConfiguration() throws ParameterMissException, FileUploadException, IOException {
+        HttpServletRequest request = this.schoolThreadLocalContainer.getRequest();
+        if(!FileUpload.isMultipartContent(request)){
+            throw new FileUploadException("not Multipart request");
+        }
+        FileUploadConfiguration fileUploadConfiguration = new  FileUploadConfiguration();
+        fileUploadConfiguration.setCrc(this.getParamter(request,LargeFileUploadAction.crc,true));
+        fileUploadConfiguration.setFileId(UUID.fromString(this.getParamter(request,LargeFileUploadAction.fileId,true)));
+        fileUploadConfiguration.setFileEnd(Long.valueOf(this.getParamter(request,LargeFileUploadAction.fileEnd,true)));
+        fileUploadConfiguration.setPartNumber(Integer.valueOf(this.getParamter(request,LargeFileUploadAction.partNumber,true)));
+        fileUploadConfiguration.setFileOffset(Long.valueOf(this.getParamter(request,LargeFileUploadAction.fileOffset,true)));
+        fileUploadConfiguration.setInputStream(request.getInputStream());
+        return fileUploadConfiguration;
+    }
+
+    /**
+     * 获取参数
+     * @param request request
+     * @param largeFileUploadAction action name
+     * @param force true 强制存在 false 非强制存在
+     * @return
+     */
+    private String getParamter(HttpServletRequest request,LargeFileUploadAction largeFileUploadAction,Boolean force) throws ParameterMissException{
+        Object par = request.getParameter(largeFileUploadAction.name());
+        if(par == null || StringUtils.isEmpty(String.valueOf(par))){
+            if (force){
+                throw new ParameterMissException(largeFileUploadAction.name());
+            }
+        }
+        return (String)par;
+    }
 }
