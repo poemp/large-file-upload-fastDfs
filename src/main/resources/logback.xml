@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<configuration>
+    <timestamp key="curTime" datePattern="yyyy-MM-dd"/>
+    <property name="logback.logs.path" value="./logs"/>
+    <property name="logback.project.name" value="fs" />
+    <!--日志模块名(如:默认(default),销售(sales),订单(orders)...)-->
+    <property name="logback.logs.module.name" value="default" />
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!--格式化输出：%d表示日期，%thread表示线程名，%-5level：级别从左显示5个字符宽度%msg：日志消息，%n是换行符-->
+            <pattern>[File] %d{yyyy-MM-dd HH:mm:ss} [%thread] %-5p %logger{1}: %m%n</pattern>
+        </encoder>
+
+    </appender>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <Prudent>true</Prudent>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <FileNamePattern>${logback.logs.path}/${logback.project.name}/%d{yyyy-MM-dd}.%i.all.log</FileNamePattern>
+            <MaxHistory>10</MaxHistory>
+            <maxFileSize>50mb</maxFileSize>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <!--格式化输出：%d表示日期，%thread表示线程名，%-5level：级别从左显示5个字符宽度%msg：日志消息，%n是换行符-->
+            <pattern>[File] %d{yyyy-MM-dd HH:mm:ss} [%thread] %-5p %logger{1}: %m%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 只记录ERROR等级的日志-->
+    <appender name="ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <Prudent>true</Prudent>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <FileNamePattern>${logback.logs.path}/${logback.project.name}/%d{yyyy-MM-dd}.%i.error.log</FileNamePattern>
+            <MaxHistory>10</MaxHistory>
+            <maxFileSize>50mb</maxFileSize>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <!--格式化输出：%d表示日期，%thread表示线程名，%-5level：级别从左显示5个字符宽度%msg：日志消息，%n是换行符-->
+            <pattern>[File] %d{yyyy-MM-dd HH:mm:ss} [%thread] %-5p %logger{1}[%L]: %m%n</pattern>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter"><!-- 只打印错误日志 -->
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+    <root level="info">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
+        <appender-ref ref="ERROR" />
+    </root>
+    <logger name="org.poem" level="info" />
+
+</configuration>
