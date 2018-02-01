@@ -2,6 +2,9 @@ package org.poem.entity;
 
 import java.io.Serializable;
 
+/**
+ * 文件块信息
+ */
 public class LargeFileUploadChunkResult implements Serializable{
 
     /**

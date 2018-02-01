@@ -7,10 +7,10 @@ import org.csource.fastdfs.ClientGlobal;
 import org.csource.fastdfs.StorageClient;
 import org.csource.fastdfs.TrackerClient;
 import org.csource.fastdfs.TrackerServer;
-import org.poem.entity.FileUploadConfiguration;
 import org.poem.entity.LargeFileUploadChunkResult;
 import org.poem.entity.LargeFileUploadResult;
 import org.poem.entity.StaticFileState;
+import org.poem.entity.upload.FileUploadConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

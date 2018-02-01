@@ -1,15 +1,59 @@
 package org.poem.entity;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * 文件整体信息
+ */
 public class LargeFileUploadResult implements Serializable {
+
+    /**
+     * 原始文件名.
+     */
+    private String originalFileName;
+
+    /**
+     * 原始文件的大小
+     */
+    private Long originalFileSizeInBytes;
+
+    /**
+     * 原始文件的创建时间
+     */
+    private Date creationDate;
+    /**
+     * Amount of bytes that were correctly validated.<br>
+     * When resuming an upload, all bytes in the file that have not been validated are revalidated.
+     * 上传了的文件中验证了的大小
+     */
+    private AtomicLong crcedBytes;
+
+    /**  */
+    private String firstChunkCrc;
+
     /**
      * is finish upload file
      */
     private AtomicBoolean status = new AtomicBoolean(false);
+
+    /**
+     * 文件id
+     */
+    private String fileId;
+
+    /**
+     * 是否完成
+     */
+    private Boolean fileComplete;
+
+    /**
+     * 是否发生错误
+     */
+    private Boolean error;
     /**
      * upload file id
      */
@@ -27,10 +71,11 @@ public class LargeFileUploadResult implements Serializable {
     /**
      * 上传文件块的信息
      */
-    private ConcurrentHashMap<String, LargeFileUploadChunkResult> largeFileUploadChunkResultMap =  new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, LargeFileUploadChunkResult> largeFileUploadChunkResultMap = new ConcurrentHashMap<>();
 
     /**
      * 使用现成安全map
+     *
      * @return
      */
     public ConcurrentHashMap<String, LargeFileUploadChunkResult> getLargeFileUploadChunkResultMap() {
@@ -41,7 +86,7 @@ public class LargeFileUploadResult implements Serializable {
         this.largeFileUploadChunkResultMap = largeFileUploadChunkResultMap;
     }
 
-    public LargeFileUploadResult(AtomicBoolean status){
+    public LargeFileUploadResult(AtomicBoolean status) {
         this.status = status;
     }
 
@@ -57,7 +102,7 @@ public class LargeFileUploadResult implements Serializable {
      * @param uploadFileId
      * @param uploadId
      */
-    public LargeFileUploadResult(AtomicBoolean status, String uploadFileId, String uploadId,  String bucketName) {
+    public LargeFileUploadResult(AtomicBoolean status, String uploadFileId, String uploadId, String bucketName) {
         this.status = status;
         this.uploadFileId = uploadFileId;
     }
@@ -76,7 +121,73 @@ public class LargeFileUploadResult implements Serializable {
     }
 
     public LargeFileUploadResult() {
-        
+
+    }
+
+
+    public String getOriginalFileName() {
+        return originalFileName;
+    }
+
+    public void setOriginalFileName(String originalFileName) {
+        this.originalFileName = originalFileName;
+    }
+
+    public Long getOriginalFileSizeInBytes() {
+        return originalFileSizeInBytes;
+    }
+
+    public void setOriginalFileSizeInBytes(Long originalFileSizeInBytes) {
+        this.originalFileSizeInBytes = originalFileSizeInBytes;
+    }
+
+    public Date getCreationDate() {
+        return creationDate;
+    }
+
+    public void setCreationDate(Date creationDate) {
+        this.creationDate = creationDate;
+    }
+
+    public AtomicLong getCrcedBytes() {
+        return crcedBytes;
+    }
+
+    public void setCrcedBytes(AtomicLong crcedBytes) {
+        this.crcedBytes = crcedBytes;
+    }
+
+    public String getFirstChunkCrc() {
+        return firstChunkCrc;
+    }
+
+    public void setFirstChunkCrc(String firstChunkCrc) {
+        this.firstChunkCrc = firstChunkCrc;
+    }
+
+
+    public String getFileId() {
+        return fileId;
+    }
+
+    public void setFileId(String fileId) {
+        this.fileId = fileId;
+    }
+
+    public Boolean getFileComplete() {
+        return fileComplete;
+    }
+
+    public void setFileComplete(Boolean fileComplete) {
+        this.fileComplete = fileComplete;
+    }
+
+    public Boolean getError() {
+        return error;
+    }
+
+    public void setError(Boolean error) {
+        this.error = error;
     }
 
     public AtomicLong getOriginalFileSize() {
