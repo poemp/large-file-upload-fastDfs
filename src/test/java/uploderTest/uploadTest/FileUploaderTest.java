@@ -49,22 +49,22 @@ public class FileUploaderTest {
 
     private static final Logger logger = LoggerFactory.getLogger(FileUploaderTest.class);
 
-    private static final String CHARSET_NAME = "UTF-8";
+    public static final String CHARSET_NAME = "UTF-8";
 
     private static final String clinetId;
 
 
     public static final String url = "http://10.6.22.32:8082";
 
-    private static String filePath =  "C:\\Users\\yineng\\Desktop\\文档\\Java4.pdf";
+    private static String filePath = "C:\\Users\\yineng\\Desktop\\R0011368.docx";
 
-    private static ExecutorService executorService ;
+    private static ExecutorService executorService;
 
     private static DefaultHttpClient client = new DefaultHttpClient(new PoolingClientConnectionManager());
 
     static {
         clinetId = UUID.randomUUID().toString();
-        executorService =  Executors.newFixedThreadPool(10);
+        executorService = Executors.newFixedThreadPool(10);
     }
 
     /**
@@ -110,12 +110,6 @@ public class FileUploaderTest {
      */
     public static Map<String, String> requestMap() {
         Map<String, String> requestMaps = Maps.newHashMap();
-        requestMaps.put("cloud.context.source", "smesis.cloud");
-        requestMaps.put("second.level.domain", "v8");
-        requestMaps.put("userId", "1");
-        requestMaps.put("specialtyId", UUID.randomUUID().toString());
-        requestMaps.put("userCode", "2");
-        requestMaps.put("resourceType", "3");
         requestMaps.put("clientId", clinetId);
         return requestMaps;
     }
@@ -129,11 +123,10 @@ public class FileUploaderTest {
      */
     public static InitializationConfiguration getConfig(DefaultHttpClient client) {
         Gson gson = new Gson();
-        StringBuffer sbBuffer = new StringBuffer(url + "/fs/largeFileUploader/uploader/largeFileUploader.htm");
+        StringBuffer sbBuffer = new StringBuffer(url + "/fs/largeUploader/getConfig");
         HttpPost request = new HttpPost(sbBuffer.toString());
         List<BasicNameValuePair> nameValuePairList = new ArrayList<>();
         Map<String, String> prepareUploadReustMap = Maps.newHashMap();
-        prepareUploadReustMap.put("action", "getConfig");
         prepareUploadReustMap.putAll(requestMap());
         for (String key : prepareUploadReustMap.keySet()) {
             nameValuePairList.add(new BasicNameValuePair(key, prepareUploadReustMap.get(key)));
@@ -146,16 +139,18 @@ public class FileUploaderTest {
             /*cookie*/
             CookieStore cookieStore = client.getCookieStore();
             client.setCookieStore(cookieStore);
-
-
             HttpEntity entity = response.getEntity();
             String resultString = "";
             if (entity != null) {
                 resultString = EntityUtils.toString(entity, CHARSET_NAME);
             }
-            if (StringUtils.isNotBlank(resultString)) {
-                InitializationConfiguration initializationConfiguration = gson.fromJson(resultString, InitializationConfiguration.class);
-                return initializationConfiguration;
+            if (200 == response.getStatusLine().getStatusCode()) {
+                if (StringUtils.isNotBlank(resultString)) {
+                    InitializationConfiguration initializationConfiguration = gson.fromJson(resultString, InitializationConfiguration.class);
+                    return initializationConfiguration;
+                }
+            }else{
+                throw new RuntimeException(resultString);
             }
         } catch (IOException e) {
             logger.error(e.getMessage(), e);
@@ -174,6 +169,7 @@ public class FileUploaderTest {
 
     /**
      * 准备上传文件
+     *
      * @param client
      * @param files
      * @return
@@ -184,14 +180,13 @@ public class FileUploaderTest {
         Map<String, String> prepareUploadMap = null;
         try {
             Map<String, String> prepareUploadReustMap = Maps.newHashMap();
-            prepareUploadReustMap.put("action", "prepareUpload");
             prepareUploadReustMap.putAll(requestMap());
             Gson gson = new Gson();
 
             List<PrepareUploadJson> prepareUploadJsons = getFileJson(files);
             PrepareUploadJson[] prepareUploadJsonsArr = prepareUploadJsons.toArray(new PrepareUploadJson[prepareUploadJsons.size()]);
             prepareUploadReustMap.put("newFiles", gson.toJson(prepareUploadJsonsArr));
-            StringBuffer sbBuffer = new StringBuffer(url + "/fs/largeFileUploader/uploader/largeFileUploader.htm");
+            StringBuffer sbBuffer = new StringBuffer(url + "/fs/largeUploader/prepareUpload");
             request = new HttpPost(sbBuffer.toString());
             List<BasicNameValuePair> nameValuePairList = new ArrayList<>();
             for (String key : prepareUploadReustMap.keySet()) {
@@ -203,14 +198,15 @@ public class FileUploaderTest {
             /*cookie*/
             CookieStore cookieStore = client.getCookieStore();
             client.setCookieStore(cookieStore);
-
-            HttpEntity entity = response.getEntity();
-            String jsonString = null;
-            if (entity != null) {
-                jsonString = EntityUtils.toString(entity, CHARSET_NAME);
+            int code = response.getStatusLine().getStatusCode();
+            if (code == 200) {
+                HttpEntity entity = response.getEntity();
+                String jsonString = null;
+                if (entity != null) {
+                    jsonString = EntityUtils.toString(entity, CHARSET_NAME);
+                }
+                prepareUploadMap = gson.fromJson(jsonString, Map.class);
             }
-            prepareUploadMap = gson.fromJson(jsonString, Map.class);
-
             request.abort();
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
@@ -232,6 +228,7 @@ public class FileUploaderTest {
 
     /**
      * 获取文件信息
+     *
      * @param files
      * @return
      * @throws Exception
@@ -245,7 +242,7 @@ public class FileUploaderTest {
             prepareUploadJson.setSize(file.length());
             String crc = doChecksum(file);
             prepareUploadJson.setCrc(crc);
-            prepareUploadJson.setTempId(i ++);
+            prepareUploadJson.setTempId(i++);
             prepareUploadJsons.add(prepareUploadJson);
         }
         return prepareUploadJsons;
@@ -260,9 +257,9 @@ public class FileUploaderTest {
     private static List<File> getFileList(String strPath) {
         File dir = new File(strPath);
         List<File> filelist = Lists.newArrayList();
-        if(dir.isFile()){
-            if(!dir.exists()){
-                throw  new  RuntimeException("file not found");
+        if (dir.isFile()) {
+            if (!dir.exists()) {
+                throw new RuntimeException("file not found");
             }
             filelist.add(dir);
             return filelist;
@@ -274,7 +271,7 @@ public class FileUploaderTest {
                 file = files[i];
                 if (file.isDirectory()) { // 判断是文件还是文件夹
                     List<File> files1 = getFileList(file.getAbsolutePath()); // 获取文件绝对路径
-                    if(CollectionUtils.isNotEmpty(files1)){
+                    if (CollectionUtils.isNotEmpty(files1)) {
                         filelist.addAll(files1);
                     }
                 } else { // 判断文件名是否以.avi结尾
@@ -288,6 +285,7 @@ public class FileUploaderTest {
     /**
      * 上传文件
      */
+
     public static void uploadFile() {
         logger.info(" ........ begin upload file to FS.  ........");
         InitializationConfiguration initializationConfiguration;
@@ -297,15 +295,18 @@ public class FileUploaderTest {
         Map<String, String> prepareUploadMap = null;
         try {
             //1.上传文件信息
-            logger.info("1.上传文件信息....."+ files.size());
+            logger.info("1.上传文件信息....." + files.size());
             initializationConfiguration = getConfig(client);
 
             //2.上传文件
             logger.info("2.准备上传文件.....");
             prepareUploadMap = prepareUpload(client, files);
 
-            logger.info("3.上传文件....."+prepareUploadMap.size());
-            aysnUploadFileToFs(prepareUploadMap, files,client.getCookieStore(), client, null, (int) initializationConfiguration.getInByte());
+            if (prepareUploadMap == null) {
+                return;
+            }
+            logger.info("3.上传文件....." + prepareUploadMap.size());
+            aysnUploadFileToFs(prepareUploadMap, files, client.getCookieStore(), client, null, (int) initializationConfiguration.getInByte());
 
             logger.info("4.模拟异步获取上传的信息");
             ExecutorService service = Executors.newCachedThreadPool();
@@ -316,7 +317,7 @@ public class FileUploaderTest {
             logger.info("5.获取上传信息.....");
             while (true) {
                 try {
-                    if (checkFileUploadResult(prepareUploadMap,files, client)) {
+                    if (checkFileUploadResult(prepareUploadMap, files, client)) {
                         break;
                     }
                     Thread.sleep(2000);
@@ -329,7 +330,7 @@ public class FileUploaderTest {
             //发生异常再次检查，如果再次错误就不检查了
             while (true) {
                 try {
-                    if (checkFileUploadResult(prepareUploadMap,files, client)) {
+                    if (checkFileUploadResult(prepareUploadMap, files, client)) {
                         break;
                     }
                     Thread.sleep(2000);
@@ -346,7 +347,6 @@ public class FileUploaderTest {
     }
 
 
-
     /**
      * 上传是否完成
      *
@@ -354,39 +354,33 @@ public class FileUploaderTest {
      * @return
      */
     private static Boolean uploadOver(LargeFileUploadResult largeFileUploadResult) {
-        if(largeFileUploadResult.getStatus().get()){
-            return  true;
+        if (largeFileUploadResult.getStatus().get()) {
+            return true;
         }
-        Long sum = 0L;
-        ConcurrentHashMap<String, LargeFileUploadChunkResult> largeFileUploadChunkResultMap = largeFileUploadResult.getLargeFileUploadChunkResultMap();
-        for (String s : largeFileUploadChunkResultMap.keySet()) {
-            if (largeFileUploadChunkResultMap.get(s).getStatus()) {
-                sum += largeFileUploadChunkResultMap.get(s).getLength();
-            }
-        }
-        return sum != 0 && sum.equals(largeFileUploadResult.getOriginalFileSizeInBytes());
+       return false;
     }
 
     /**
      * 检查文件是否上传完成
+     *
      * @param prepareUploadMap
      * @param files
      * @param client
      * @return
      * @throws Exception
      */
-    private static boolean checkFileUploadResult(Map<String, String> prepareUploadMap,List<File> files , DefaultHttpClient client) throws Exception {
+    private static boolean checkFileUploadResult(Map<String, String> prepareUploadMap, List<File> files, DefaultHttpClient client) throws Exception {
         InitializationConfiguration initializationConfiguration;
         Map<String, LargeFileUploadResult> fileStateJsonMap;
         initializationConfiguration = getConfig(client);
         int successSum = 0;
         if (initializationConfiguration != null) {
-            logger.info("检查是否上传完成\n\n"+ new Gson().toJson(initializationConfiguration)+"\n\n");
+            logger.info("检查是否上传完成\n\n" + new Gson().toJson(initializationConfiguration) + "\n\n");
             fileStateJsonMap = initializationConfiguration.getLargeFileUploadResultMap();
             for (String file : fileStateJsonMap.keySet()) {
                 LargeFileUploadResult fileStateJson = fileStateJsonMap.get(file);
                 if (!uploadOver(fileStateJson)) {
-                    aysnUploadFileToFs(prepareUploadMap, files, client.getCookieStore(), client,  fileStateJson, (int) initializationConfiguration.getInByte());
+                    aysnUploadFileToFs(prepareUploadMap, files, client.getCookieStore(), client, fileStateJson, (int) initializationConfiguration.getInByte());
                 } else {
                     successSum += 1;
                 }
@@ -395,7 +389,7 @@ public class FileUploaderTest {
             if (successSum == fileStateJsonMap.size() && successSum != 0) {
                 //再次获取数据，显示出来看看
                 initializationConfiguration = getConfig(client);
-                logger.info( " 上传信息是：\n\n\t" + new Gson().toJson(initializationConfiguration) + "\n\n");
+                logger.info(" 上传信息是：\n\n\t" + new Gson().toJson(initializationConfiguration) + "\n\n");
                 return true;
             }
         }
@@ -404,24 +398,25 @@ public class FileUploaderTest {
 
     /**
      * 多线程上传文件
+     *
      * @param prepareUploadMap
      * @param files
      * @param cookieStore
      * @param client
      * @param inByte
      */
-    private static void aysnUploadFileToFs(Map<String, String> prepareUploadMap,List<File> files , CookieStore cookieStore, DefaultHttpClient client, LargeFileUploadResult largeFileUploadResult, int inByte) {
+    private static void aysnUploadFileToFs(Map<String, String> prepareUploadMap, List<File> files, CookieStore cookieStore, DefaultHttpClient client, LargeFileUploadResult largeFileUploadResult, int inByte) {
         HttpPost request = null;
         CloseableHttpResponse response = null;
         client.getParams().setIntParameter(CoreConnectionPNames.SO_TIMEOUT, 3000);
         client.getParams().setIntParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000);
-        String uploadUrl = url + "/fs/uploadServletAsync/async/async?action=upload&timestamp=" + new Date().getTime();
+        String uploadUrl = url + "/fs/largeUploader/asyncFileUploader?timestamp=" + new Date().getTime();
         Map<String, String> requestMap = FileUploaderTest.requestMap();
         MultipartEntity multipartEntity;
         Uploader uploader;
         try {
             Integer i = 0;
-            String fileId ;
+            String fileId;
             for (File file : files) {
                 fileId = prepareUploadMap.get(String.valueOf(i++));
                 Set<FileEntity> fileEntities = SplitFileUtils.splitFile(file.getAbsolutePath(), inByte);
@@ -478,7 +473,6 @@ public class FileUploaderTest {
         HttpPost request = new HttpPost(sbBuffer.toString());
         List<BasicNameValuePair> nameValuePairList = new ArrayList<>();
         Map<String, String> prepareUploadReustMap = Maps.newHashMap();
-        prepareUploadReustMap.put("action", "clearFile");
         prepareUploadReustMap.put("fileId", fileId);
         for (String key : prepareUploadReustMap.keySet()) {
             nameValuePairList.add(new BasicNameValuePair(key, prepareUploadReustMap.get(key)));

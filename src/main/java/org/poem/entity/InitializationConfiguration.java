@@ -1,16 +1,16 @@
 package org.poem.entity;
 
 import java.io.Serializable;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 返回信息
  */
 public class InitializationConfiguration implements Serializable {
 
-    private long  inByte = 10 * 1024 * 1024;
+    private long  inByte;
 
-    private Map<String,LargeFileUploadResult> largeFileUploadResultMap ;
+    private ConcurrentHashMap<String,LargeFileUploadResult> largeFileUploadResultMap = new ConcurrentHashMap<>() ;
 
     public long getInByte() {
         return inByte;
@@ -20,11 +20,11 @@ public class InitializationConfiguration implements Serializable {
         this.inByte = inByte;
     }
 
-    public Map<String, LargeFileUploadResult> getLargeFileUploadResultMap() {
+    public ConcurrentHashMap<String, LargeFileUploadResult> getLargeFileUploadResultMap() {
         return largeFileUploadResultMap;
     }
 
-    public void setLargeFileUploadResultMap(Map<String, LargeFileUploadResult> largeFileUploadResultMap) {
+    public void setLargeFileUploadResultMap(ConcurrentHashMap<String, LargeFileUploadResult> largeFileUploadResultMap) {
         this.largeFileUploadResultMap = largeFileUploadResultMap;
     }
 }

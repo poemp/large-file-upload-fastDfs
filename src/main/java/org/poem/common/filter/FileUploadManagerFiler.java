@@ -38,6 +38,7 @@ public class FileUploadManagerFiler implements Filter {
         }
         servletRequest = new ParameterRequestWrapper((HttpServletRequest)servletRequest, m);
         filterChain.doFilter(servletRequest, servletResponse);
+        container.clear();
     }
 
     @Override

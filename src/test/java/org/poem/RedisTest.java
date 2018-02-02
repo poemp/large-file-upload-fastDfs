@@ -1,5 +1,6 @@
 package org.poem;
 
+import com.google.gson.Gson;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.poem.utils.RedisUtils;
@@ -17,6 +18,9 @@ public class RedisTest {
     public void redisTest(){
         String redisKey = "redisKey";
         RedisUtils.set(redisKey, UUID.randomUUID().toString());
-        System.err.println(RedisUtils.get(redisKey)+"");
+        Object o = RedisUtils.get("4534d8fd-0c84-44d3-93bb-fa284a1e103d");
+        if(o != null){
+            System.err.println(new Gson().toJson(o));
+        }
     }
 }

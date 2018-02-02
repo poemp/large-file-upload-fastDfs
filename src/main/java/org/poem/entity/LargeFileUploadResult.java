@@ -22,10 +22,6 @@ public class LargeFileUploadResult implements Serializable {
     private Long originalFileSizeInBytes;
 
     /**
-     * 原始文件的创建时间
-     */
-    private Date creationDate;
-    /**
      * Amount of bytes that were correctly validated.<br>
      * When resuming an upload, all bytes in the file that have not been validated are revalidated.
      * 上传了的文件中验证了的大小
@@ -48,12 +44,12 @@ public class LargeFileUploadResult implements Serializable {
     /**
      * 是否完成
      */
-    private Boolean fileComplete;
+    private Boolean fileComplete = false;
 
     /**
      * 是否发生错误
      */
-    private Boolean error;
+    private Boolean error = false;
     /**
      * upload file id
      */
@@ -66,7 +62,7 @@ public class LargeFileUploadResult implements Serializable {
     /**
      * 文件上传的结果
      */
-    private AtomicLong originalFileSize;
+    private AtomicLong originalFileSize = new AtomicLong(0);
 
     /**
      * 上传文件块的信息
@@ -140,15 +136,6 @@ public class LargeFileUploadResult implements Serializable {
     public void setOriginalFileSizeInBytes(Long originalFileSizeInBytes) {
         this.originalFileSizeInBytes = originalFileSizeInBytes;
     }
-
-    public Date getCreationDate() {
-        return creationDate;
-    }
-
-    public void setCreationDate(Date creationDate) {
-        this.creationDate = creationDate;
-    }
-
     public AtomicLong getCrcedBytes() {
         return crcedBytes;
     }

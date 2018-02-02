@@ -2,6 +2,7 @@ package org.poem.common.asyncListener;
 
 import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
+import javax.servlet.ServletRequest;
 import java.io.IOException;
 import java.util.UUID;
 
@@ -9,7 +10,7 @@ public abstract class FileUploadAsyncListener implements AsyncListener {
 
     private UUID fileId ;
 
-    protected abstract void clean();
+    protected abstract void clean(ServletRequest request);
 
 
     public FileUploadAsyncListener(UUID fileId){
@@ -18,17 +19,17 @@ public abstract class FileUploadAsyncListener implements AsyncListener {
 
     @Override
     public void onComplete(AsyncEvent asyncEvent) throws IOException {
-        clean();
+        clean(asyncEvent.getSuppliedRequest());
     }
 
     @Override
     public void onTimeout(AsyncEvent asyncEvent) throws IOException {
-        clean();
+        clean(asyncEvent.getSuppliedRequest());
     }
 
     @Override
     public void onError(AsyncEvent asyncEvent) throws IOException {
-        clean();
+        clean(asyncEvent.getSuppliedRequest());
     }
 
     @Override

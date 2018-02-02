@@ -9,7 +9,9 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableAsync;
 
+@EnableAsync
 @SpringBootApplication
 @EnableAutoConfiguration
 public class LargeFileUploaderApp {
@@ -35,6 +37,8 @@ public class LargeFileUploaderApp {
      * @param args
      */
     public static void main(String[] args) {
+        System.setProperty("org.eclipse.jetty.server.Request.maxFormContentSize", String.valueOf(Integer.MAX_VALUE));
+        System.setProperty("org.eclipse.jetty.server.Request.maxFormKeys", String.valueOf(Integer.MAX_VALUE));
         SpringApplication.run(LargeFileUploaderApp.class,args);
     }
 }

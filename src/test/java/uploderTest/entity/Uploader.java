@@ -1,5 +1,6 @@
 package uploderTest.entity;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.client.CookieStore;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -8,6 +9,7 @@ import org.apache.http.entity.mime.content.ByteArrayBody;
 import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.CoreConnectionPNames;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uploderTest.uploadTest.FileUploaderTest;
@@ -46,7 +48,7 @@ public class Uploader implements Runnable{
         try {
             client.getParams().setIntParameter(CoreConnectionPNames.SO_TIMEOUT, 100000);
             client.getParams().setIntParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 100000);
-            String uploadUrl = FileUploaderTest.url+  "/fs/uploadServletAsync/async/async?action=upload&timestamp="+new Date().getTime();
+            String uploadUrl = FileUploaderTest.url+  "/fs/largeUploader/asyncFileUploader?timestamp="+new Date().getTime();
             request = new HttpPost(uploadUrl);
                 /*表单提交*/
             MultipartEntity multipartEntity = new MultipartEntity();
@@ -60,8 +62,17 @@ public class Uploader implements Runnable{
             request.setEntity(multipartEntity);
             request.setHeader("Origin-Rang", fileEntity.getFileOffset()+"-" +fileEntity.getFileEnd() + "-"+fileEntity.getPartNumber());
             this.client.setCookieStore(cookieStore);
-            logger.info(Thread.currentThread().getName() + "\t开始上传"+fileId+"第:"+(fileEntity.getPartNumber()+1)+"个文件");
             response = this.client.execute(request);
+            if(200 == response.getStatusLine().getStatusCode()){
+                logger.info(Thread.currentThread().getName() + "\t开始上传"+fileId+"第:"+(fileEntity.getPartNumber()+1)+"个文件 over.");
+            }else{
+                HttpEntity entity = response.getEntity();
+                String resultString = "";
+                if (entity != null) {
+                    resultString = EntityUtils.toString(entity, FileUploaderTest.CHARSET_NAME);
+                }
+                logger.error(resultString);
+            }
         }catch (Exception e){
             logger.error(e.getMessage(),e);
         }finally {

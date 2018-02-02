@@ -6,7 +6,14 @@ import com.google.gson.Gson;
 import org.apache.commons.fileupload.FileUploadException;
 import org.poem.common.asyncListener.FileUploadAsyncListener;
 import org.poem.common.exceptpion.ParameterMissException;
+import org.poem.common.exceptpion.UploadFileNotFoundException;
 import org.poem.common.helper.LargeFileUploaderHelper;
+import org.poem.common.helper.SchoolThreadLocalContainer;
+import org.poem.common.uploader.FileUploader;
+import org.poem.common.uploader.WriteChunkCompletionListener;
+import org.poem.entity.InitializationConfiguration;
+import org.poem.entity.LargeFileUploadChunkResult;
+import org.poem.entity.LargeFileUploadResult;
 import org.poem.entity.upload.FileUploadConfiguration;
 import org.poem.entity.upload.PrepareUploadJson;
 import org.poem.utils.StringUtils;
@@ -19,29 +26,43 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
+import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @RestController
 @RequestMapping("/largeUploader")
 public class LargeFileUploaderController {
 
-    private static final Logger logger = LoggerFactory.getLogger(LargeFileUploaderController.class);
+    /**
+     * 默认文件大小
+     */
+    public static final int default_size = 10 * 1024 * 1024;
 
+    /**
+     * 上传优化效果
+     */
     @Autowired
     private LargeFileUploaderHelper largeFileUploaderHelper;
+
+    @Autowired
+    SchoolThreadLocalContainer container;
     /**
      * get config
      * @return
      */
     @RequestMapping("/getConfig")
-    public Serializable getConfig(){
-        return  largeFileUploaderHelper.getConfig();
+    public Serializable getConfig() throws ParameterMissException {
+        return  largeFileUploaderHelper.getConfig(false);
     }
 
     /**
@@ -50,9 +71,9 @@ public class LargeFileUploaderController {
      * @return
      */
     @RequestMapping("/prepareUpload")
-    public Serializable prepareUpload(String newFiles){
-        if(StringUtils.isNotEmpty(newFiles)){
-            largeFileUploaderHelper.writeToResponse("文件为空");
+    public Serializable prepareUpload(String newFiles) throws ParameterMissException {
+        if(StringUtils.isEmpty(newFiles)){
+            largeFileUploaderHelper.writeToResponse(new ParameterMissException("newFiles parameter is null."));
         }
         PrepareUploadJson[] fromJson = new Gson().fromJson(newFiles, PrepareUploadJson[].class);
         Map<String,UUID> map = largeFileUploaderHelper.prepareUpload(fromJson);
@@ -61,32 +82,5 @@ public class LargeFileUploaderController {
                 return input.toString();
             }
         }));
-    }
-
-    /**
-     * 异步上传
-     * @param request
-     * @param response
-     */
-    @RequestMapping("/asyncFileUploader")
-    public void asyncFileUploader(final HttpServletRequest request , final HttpServletResponse response){
-        try{
-            FileUploadConfiguration fileUploadConfiguration = this.largeFileUploaderHelper.extractFileUploadConfiguration();
-            /*开启同步策略*/
-            final AsyncContext asyncContext = request.startAsync();
-            asyncContext.setTimeout(TimeUnit.MICROSECONDS.toMillis(3000));
-            asyncContext.addListener(new FileUploadAsyncListener(fileUploadConfiguration.getFileId()) {
-                @Override
-                public void clean(){
-
-                }
-            });
-        } catch (FileUploadException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ParameterMissException e) {
-            e.printStackTrace();
-        }
     }
 }
