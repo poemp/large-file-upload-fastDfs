@@ -411,7 +411,6 @@ public class FileUploaderTest {
         CookieStore cookieStore = new BasicCookieStore();
         BasicClientCookie basicClientCookie = new BasicClientCookie("clientId",clinetId);
         basicClientCookie.setDomain(url);
-
         cookieStore.addCookie(basicClientCookie);
 
         uploadFile(cookieStore);
