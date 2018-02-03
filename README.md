@@ -77,7 +77,7 @@
      
  * 指定文件块的开始位置和结束位置
     
-       当前值是房子请求的 header 之中
+       当前值是放在请求的 header 之中
        
        eg: request.setHeader("Origin-Rang", fileEntity.getFileOffset() + "-" + fileEntity.getFileEnd() + "-" + fileEntity.getPartNumber());
        
