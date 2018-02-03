@@ -3,7 +3,7 @@
 实现大文件的断点续传，使用Redis做数据信息的缓存，不提供数据的删除。
 
 代码更新下来，启动。
-###1、 创建并且指定ClientId，(可以指定或者不指定)
+### 1、 创建并且指定ClientId，(可以指定或者不指定)
 
 ````
    CookieStore cookieStore = new BasicCookieStore();
@@ -12,7 +12,7 @@
    cookieStore.addCookie(basicClientCookie);
 ````
 
-###2、 获取文件的分块大小信息，之前上传文件的信息
+### 2、 获取文件的分块大小信息，之前上传文件的信息
 
 ````
     http://127.0.0.1:8082/fs/largeUploader/getConfig
@@ -28,7 +28,7 @@
 }
 ``````
 
-###3、准备上传的信息，后端会生成相应的数据
+### 3、准备上传的信息，后端会生成相应的数据
 
 ````
     http://127.0.0.1:8082/fs/largeUploader/prepareUpload
@@ -63,7 +63,7 @@
 }
  ``````
  
- ###4、开始上传(post)
+ ### 4、开始上传(post)
  ````
      http://127.0.0.1:8082/fs/fs/largeUploader/asyncFileUploader
  ````
@@ -82,7 +82,7 @@
        eg: request.setHeader("Origin-Rang", fileEntity.getFileOffset() + "-" + fileEntity.getFileEnd() + "-" + fileEntity.getPartNumber());
        
   
-  ###4、获取文件的分块大小信息，之前上传文件的信息
+  ### 5、获取文件的分块大小信息，之前上传文件的信息
   
   ````
       http://127.0.0.1:8082/fs/largeUploader/getConfig
