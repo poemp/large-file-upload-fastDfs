@@ -54,7 +54,7 @@ public class FileUploader implements Callable<Void> {
      * @param largeFileUploadResult
      * @param writeChunkCompletionListener
      */
-    public FileUploader(String clientId,FileUploadConfiguration fileUploadConfiguration, ExecutorService executorService,
+    public FileUploader(String clientId, FileUploadConfiguration fileUploadConfiguration, ExecutorService executorService,
                         LargeFileUploadResult largeFileUploadResult,
                         WriteChunkCompletionListener writeChunkCompletionListener,
                         LargeFileUploaderHelper largeFileUploaderHelper) {
@@ -74,28 +74,36 @@ public class FileUploader implements Callable<Void> {
      */
     @Override
     public Void call() throws Exception {
-        logger.info(this.clientId + "   \t\tbegin Upload");
-        this.writeChunkCompletionListener.start();
-        byte[] bytes = new byte[LargeFileUploaderController.default_size];
-        InputStream inputStream = this.fileUploadConfiguration.getInputStream();
-        try {
-            int length = inputStream.read(bytes);
-            if (length != -1){
-                largeFileUploadResult = StorageUtils.uploadLargeFile(bytes, largeFileUploadResult, this.fileUploadConfiguration);
-                executorService.submit(this);
-            }else{
-                this.writeChunkCompletionListener.success();
-            }
-            logger.info("上传完成.");
-            largeFileUploaderHelper.updateEntity(clientId,fileUploadConfiguration.getFileId().toString(),largeFileUploadResult);
-        } catch (Exception e) {
-            e.printStackTrace();
+        try{
+            write();
+        }catch (Exception e){
             this.writeChunkCompletionListener.error(e);
-        } finally {
-            IOUtils.closeQuietly(inputStream);
         }
         return null;
     }
+
+    /**
+     * 开始写入数据
+     * @throws Exception
+     */
+    private void write() throws Exception {
+        logger.info(Thread.currentThread().getName() + "\tget file from client " + clientId + "  , theFileId is " + fileUploadConfiguration.getFileId());
+        this.writeChunkCompletionListener.start();
+        InputStream inputStream = this.fileUploadConfiguration.getInputStream();
+
+        byte[] buffer = new byte[LargeFileUploaderController.default_size];
+        int length = inputStream.read(buffer);
+        if (length != -1) {
+            largeFileUploadResult = StorageUtils.uploadLargeFile(buffer, largeFileUploadResult, this.fileUploadConfiguration);
+            executorService.submit(this);
+        } else {
+            IOUtils.closeQuietly(inputStream);
+            logger.info("上传完成.");
+            largeFileUploaderHelper.updateEntity(clientId, fileUploadConfiguration.getFileId().toString(), largeFileUploadResult);
+            this.writeChunkCompletionListener.success();
+        }
+    }
+
 
     public FileUploadConfiguration getFileUploadConfiguration() {
         return fileUploadConfiguration;

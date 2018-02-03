@@ -4,18 +4,17 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.CookieStore;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.mime.MultipartEntity;
-import org.apache.http.entity.mime.content.ByteArrayBody;
-import org.apache.http.entity.mime.content.StringBody;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.PoolingClientConnectionManager;
+import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.CoreConnectionPNames;
 import org.apache.http.util.EntityUtils;
 import org.poem.entity.InitializationConfiguration;
 import org.poem.entity.LargeFileUploadChunkResult;
@@ -33,11 +32,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.CRC32;
 
 
@@ -51,16 +49,18 @@ public class FileUploaderTest {
 
     public static final String CHARSET_NAME = "UTF-8";
 
-    private static final String clinetId;
-
-
     public static final String url = "http://10.6.22.32:8082";
+
+    /**
+     * 超时时间 5 分钟
+     */
+    public static final long timeout = TimeUnit.MINUTES.toMillis(5);
+
+    private static final String clinetId;
 
     private static String filePath = "C:\\Users\\yineng\\Desktop\\R0011368.docx";
 
     private static ExecutorService executorService;
-
-    private static DefaultHttpClient client = new DefaultHttpClient(new PoolingClientConnectionManager());
 
     static {
         clinetId = UUID.randomUUID().toString();
@@ -117,28 +117,25 @@ public class FileUploaderTest {
     /**
      * 获取文件的配置
      *
-     * @param client
+     * @param cookieStore
      * @return
-     * @throws IOException
      */
-    public static InitializationConfiguration getConfig(DefaultHttpClient client) {
+    public static InitializationConfiguration getConfig(CookieStore cookieStore) {
+        CloseableHttpClient client = null;
+        CloseableHttpResponse response = null;
         Gson gson = new Gson();
-        StringBuffer sbBuffer = new StringBuffer(url + "/fs/largeUploader/getConfig");
-        HttpPost request = new HttpPost(sbBuffer.toString());
+        HttpPost request = new HttpPost(url + "/fs/largeUploader/getConfig");
         List<BasicNameValuePair> nameValuePairList = new ArrayList<>();
         Map<String, String> prepareUploadReustMap = Maps.newHashMap();
         prepareUploadReustMap.putAll(requestMap());
         for (String key : prepareUploadReustMap.keySet()) {
             nameValuePairList.add(new BasicNameValuePair(key, prepareUploadReustMap.get(key)));
         }
-        CloseableHttpResponse response = null;
         try {
             UrlEncodedFormEntity paramsEntity = new UrlEncodedFormEntity(nameValuePairList, CHARSET_NAME);
             request.setEntity(paramsEntity);
+            client = HttpClients.custom().setDefaultCookieStore(cookieStore).build();
             response = client.execute(request);
-            /*cookie*/
-            CookieStore cookieStore = client.getCookieStore();
-            client.setCookieStore(cookieStore);
             HttpEntity entity = response.getEntity();
             String resultString = "";
             if (entity != null) {
@@ -149,20 +146,15 @@ public class FileUploaderTest {
                     InitializationConfiguration initializationConfiguration = gson.fromJson(resultString, InitializationConfiguration.class);
                     return initializationConfiguration;
                 }
-            }else{
+            } else {
                 throw new RuntimeException(resultString);
             }
         } catch (IOException e) {
             logger.error(e.getMessage(), e);
         } finally {
             request.abort();
-            if (response != null) {
-                try {
-                    response.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+            IOUtils.closeQuietly(client);
+            IOUtils.closeQuietly(response);
         }
         return null;
     }
@@ -170,34 +162,30 @@ public class FileUploaderTest {
     /**
      * 准备上传文件
      *
-     * @param client
+     * @param cookieStore
      * @param files
      * @return
      */
-    private static Map<String, String> prepareUpload(DefaultHttpClient client, List<File> files) {
+    private static Map<String, String> prepareUpload(CookieStore cookieStore, List<File> files) {
         CloseableHttpResponse response = null;
-        HttpPost request = null;
+        CloseableHttpClient client = null;
+        HttpPost request  = new HttpPost(url + "/fs/largeUploader/prepareUpload");
         Map<String, String> prepareUploadMap = null;
         try {
             Map<String, String> prepareUploadReustMap = Maps.newHashMap();
             prepareUploadReustMap.putAll(requestMap());
             Gson gson = new Gson();
-
             List<PrepareUploadJson> prepareUploadJsons = getFileJson(files);
             PrepareUploadJson[] prepareUploadJsonsArr = prepareUploadJsons.toArray(new PrepareUploadJson[prepareUploadJsons.size()]);
             prepareUploadReustMap.put("newFiles", gson.toJson(prepareUploadJsonsArr));
-            StringBuffer sbBuffer = new StringBuffer(url + "/fs/largeUploader/prepareUpload");
-            request = new HttpPost(sbBuffer.toString());
             List<BasicNameValuePair> nameValuePairList = new ArrayList<>();
             for (String key : prepareUploadReustMap.keySet()) {
                 nameValuePairList.add(new BasicNameValuePair(key, prepareUploadReustMap.get(key)));
             }
             UrlEncodedFormEntity paramsEntity = new UrlEncodedFormEntity(nameValuePairList, CHARSET_NAME);
             request.setEntity(paramsEntity);
+            client = HttpClients.custom().setDefaultCookieStore(cookieStore).build();
             response = client.execute(request);
-            /*cookie*/
-            CookieStore cookieStore = client.getCookieStore();
-            client.setCookieStore(cookieStore);
             int code = response.getStatusLine().getStatusCode();
             if (code == 200) {
                 HttpEntity entity = response.getEntity();
@@ -207,20 +195,12 @@ public class FileUploaderTest {
                 }
                 prepareUploadMap = gson.fromJson(jsonString, Map.class);
             }
-            request.abort();
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
         } finally {
-            if (request != null) {
-                request.abort();
-            }
-            if (response != null) {
-                try {
-                    response.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+            request.abort();
+            IOUtils.closeQuietly(response);
+            IOUtils.closeQuietly(client);
         }
         return prepareUploadMap;
     }
@@ -286,63 +266,58 @@ public class FileUploaderTest {
      * 上传文件
      */
 
-    public static void uploadFile() {
+    public static void uploadFile(CookieStore cookieStore) {
         logger.info(" ........ begin upload file to FS.  ........");
         InitializationConfiguration initializationConfiguration;
-        HttpPost request = null;
 
         List<File> files = getFileList(filePath);
         Map<String, String> prepareUploadMap = null;
         try {
             //1.上传文件信息
             logger.info("1.上传文件信息....." + files.size());
-            initializationConfiguration = getConfig(client);
+            initializationConfiguration = getConfig(cookieStore);
 
             //2.上传文件
             logger.info("2.准备上传文件.....");
-            prepareUploadMap = prepareUpload(client, files);
+            prepareUploadMap = prepareUpload(cookieStore, files);
 
             if (prepareUploadMap == null) {
                 return;
             }
             logger.info("3.上传文件....." + prepareUploadMap.size());
-            aysnUploadFileToFs(prepareUploadMap, files, client.getCookieStore(), client, null, (int) initializationConfiguration.getInByte());
+            aysnUploadFileToFs(prepareUploadMap, files, cookieStore, null, (int) initializationConfiguration.getInByte());
 
             logger.info("4.模拟异步获取上传的信息");
             ExecutorService service = Executors.newCachedThreadPool();
-            ConfigEntity config = new ConfigEntity(client, service);
+            ConfigEntity config = new ConfigEntity(service, cookieStore);
             service.execute(config);
 
             //3.获取上传信息
             logger.info("5.获取上传信息.....");
-            while (true) {
-                try {
-                    if (checkFileUploadResult(prepareUploadMap, files, client)) {
-                        break;
-                    }
-                    Thread.sleep(2000);
-                } catch (Exception e1) {
-                    logger.error(e1.getMessage(), e1);
-                }
-            }
+            errorCheckAndNomalCheck(cookieStore, files, prepareUploadMap);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             //发生异常再次检查，如果再次错误就不检查了
-            while (true) {
-                try {
-                    if (checkFileUploadResult(prepareUploadMap, files, client)) {
-                        break;
-                    }
-                    Thread.sleep(2000);
-                } catch (Exception e1) {
-                    logger.error(e.getMessage(), e);
+            errorCheckAndNomalCheck(cookieStore, files, prepareUploadMap);
+        }
+    }
+
+    /**
+     * 检查
+     * @param cookieStore
+     * @param files
+     * @param prepareUploadMap
+     */
+    private static void errorCheckAndNomalCheck(CookieStore cookieStore, List<File> files, Map<String, String> prepareUploadMap) {
+        while (true) {
+            try {
+                if (checkFileUploadResult(prepareUploadMap, files, cookieStore)) {
+                    break;
                 }
+                Thread.sleep(2000);
+            } catch (Exception e1) {
+                logger.error(e1.getMessage(), e1);
             }
-        } finally {
-            if (request != null) {
-                request.abort();
-            }
-            logger.info("关闭client");
         }
     }
 
@@ -357,7 +332,7 @@ public class FileUploaderTest {
         if (largeFileUploadResult.getStatus().get()) {
             return true;
         }
-       return false;
+        return false;
     }
 
     /**
@@ -365,14 +340,14 @@ public class FileUploaderTest {
      *
      * @param prepareUploadMap
      * @param files
-     * @param client
+     * @param cookieStore
      * @return
      * @throws Exception
      */
-    private static boolean checkFileUploadResult(Map<String, String> prepareUploadMap, List<File> files, DefaultHttpClient client) throws Exception {
+    private static boolean checkFileUploadResult(Map<String, String> prepareUploadMap, List<File> files, CookieStore cookieStore) throws Exception {
         InitializationConfiguration initializationConfiguration;
         Map<String, LargeFileUploadResult> fileStateJsonMap;
-        initializationConfiguration = getConfig(client);
+        initializationConfiguration = getConfig(cookieStore);
         int successSum = 0;
         if (initializationConfiguration != null) {
             logger.info("检查是否上传完成\n\n" + new Gson().toJson(initializationConfiguration) + "\n\n");
@@ -380,7 +355,7 @@ public class FileUploaderTest {
             for (String file : fileStateJsonMap.keySet()) {
                 LargeFileUploadResult fileStateJson = fileStateJsonMap.get(file);
                 if (!uploadOver(fileStateJson)) {
-                    aysnUploadFileToFs(prepareUploadMap, files, client.getCookieStore(), client, fileStateJson, (int) initializationConfiguration.getInByte());
+                    aysnUploadFileToFs(prepareUploadMap, files, cookieStore, fileStateJson, (int) initializationConfiguration.getInByte());
                 } else {
                     successSum += 1;
                 }
@@ -388,7 +363,7 @@ public class FileUploaderTest {
             //上传完成咯，可以啦
             if (successSum == fileStateJsonMap.size() && successSum != 0) {
                 //再次获取数据，显示出来看看
-                initializationConfiguration = getConfig(client);
+                initializationConfiguration = getConfig(cookieStore);
                 logger.info(" 上传信息是：\n\n\t" + new Gson().toJson(initializationConfiguration) + "\n\n");
                 return true;
             }
@@ -402,17 +377,9 @@ public class FileUploaderTest {
      * @param prepareUploadMap
      * @param files
      * @param cookieStore
-     * @param client
      * @param inByte
      */
-    private static void aysnUploadFileToFs(Map<String, String> prepareUploadMap, List<File> files, CookieStore cookieStore, DefaultHttpClient client, LargeFileUploadResult largeFileUploadResult, int inByte) {
-        HttpPost request = null;
-        CloseableHttpResponse response = null;
-        client.getParams().setIntParameter(CoreConnectionPNames.SO_TIMEOUT, 3000);
-        client.getParams().setIntParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000);
-        String uploadUrl = url + "/fs/largeUploader/asyncFileUploader?timestamp=" + new Date().getTime();
-        Map<String, String> requestMap = FileUploaderTest.requestMap();
-        MultipartEntity multipartEntity;
+    private static void aysnUploadFileToFs(Map<String, String> prepareUploadMap, List<File> files, CookieStore cookieStore, LargeFileUploadResult largeFileUploadResult, int inByte) {
         Uploader uploader;
         try {
             Integer i = 0;
@@ -423,79 +390,38 @@ public class FileUploaderTest {
                 LargeFileUploadChunkResult largeFileUploadChunkResult;
                 for (FileEntity fileEntity : fileEntities) {
                     if (largeFileUploadResult != null) {
-                        largeFileUploadChunkResult = largeFileUploadResult.getLargeFileUploadChunkResultMap().get(fileId + "@" + String.valueOf(fileEntity.getFileChunk()));
+                        largeFileUploadChunkResult = largeFileUploadResult.getLargeFileUploadChunkResultMap().get(fileId + "@" + String.valueOf(String.valueOf(fileEntity.getFileChunk())));
                         if (largeFileUploadChunkResult != null && largeFileUploadChunkResult.getStatus()) {
                             continue;
                         }
                     }
-                    request = new HttpPost(uploadUrl);
-                    multipartEntity = new MultipartEntity();
-                    multipartEntity.addPart("fileId", new StringBody(fileId, Charset.forName("UTF-8")));
-                    multipartEntity.addPart("crc", new StringBody(fileEntity.getFileCheckNum(), Charset.forName("UTF-8")));
-                    multipartEntity.addPart("file", new ByteArrayBody(fileEntity.getFileChunk(), file.getName()));
-                    for (String key : requestMap.keySet()) {
-                        multipartEntity.addPart(key, new StringBody(requestMap.get(key), Charset.forName("UTF-8")));
-                    }
-                    request.setEntity(multipartEntity);
-                    request.setHeader("Origin-Rang", fileEntity.getFileOffset() + "-" + fileEntity.getFileEnd() + "-" + fileEntity.getPartNumber());
-                    client.setCookieStore(cookieStore);
-                    uploader = new Uploader(fileEntity, fileId, file.getAbsolutePath(), cookieStore, client, file.getName());
+                    uploader = new Uploader(fileEntity, fileId,clinetId, cookieStore, file.getName());
                     executorService.execute(uploader);
                 }
             }
         } catch (Exception e) {
             logger.info(e.getMessage());
             e.printStackTrace();
-        } finally {
-            if (request != null) {
-                request.abort();
-            }
-            if (response != null) {
-                try {
-                    response.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
         }
 
-    }
-
-    /**
-     * 删除文件
-     *
-     * @param client 客户
-     * @param fileId 文件ID
-     */
-    private static void deleteFile(CloseableHttpResponse response, DefaultHttpClient client, String fileId) throws IOException {
-        logger.info("4. 删除数据......");
-        StringBuffer sbBuffer = new StringBuffer(url + "/fs/largeFileUploader/uploader/largeFileUploader.htm");
-        HttpPost request = new HttpPost(sbBuffer.toString());
-        List<BasicNameValuePair> nameValuePairList = new ArrayList<>();
-        Map<String, String> prepareUploadReustMap = Maps.newHashMap();
-        prepareUploadReustMap.put("fileId", fileId);
-        for (String key : prepareUploadReustMap.keySet()) {
-            nameValuePairList.add(new BasicNameValuePair(key, prepareUploadReustMap.get(key)));
-        }
-        UrlEncodedFormEntity paramsEntity = new UrlEncodedFormEntity(nameValuePairList, CHARSET_NAME);
-        request.setEntity(paramsEntity);
-        response = client.execute(request);
-        /*cookie*/
-        CookieStore cookieStore = client.getCookieStore();
-        client.setCookieStore(cookieStore);
-        request.abort();
-        response.close();
     }
 
 
     public static void main(String[] args) throws Exception {
-        uploadFile();
+        CookieStore cookieStore = new BasicCookieStore();
+        BasicClientCookie basicClientCookie = new BasicClientCookie("clientId",clinetId);
+        basicClientCookie.setDomain(url);
+
+        cookieStore.addCookie(basicClientCookie);
+
+        uploadFile(cookieStore);
+
         executorService.shutdown();
         //判断是否所有的线程已经运行完
+
         while (!executorService.isTerminated()) {
 
         }
-        client.close();
         System.exit(0);
     }
 }

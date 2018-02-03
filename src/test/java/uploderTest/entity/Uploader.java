@@ -1,92 +1,77 @@
 package uploderTest.entity;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.CookieStore;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.mime.MultipartEntity;
-import org.apache.http.entity.mime.content.ByteArrayBody;
-import org.apache.http.entity.mime.content.StringBody;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.CoreConnectionPNames;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uploderTest.uploadTest.FileUploaderTest;
 
-
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.Date;
-import java.util.Map;
 
-public class Uploader implements Runnable{
+public class Uploader implements Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(Uploader.class);
 
 
     private FileEntity fileEntity;
-    String fileId;
-    String fileSrc;
-    CookieStore cookieStore;
-    DefaultHttpClient client;
-    String fileName;
+    private String fileId;
+    private String clientId;
+    private CookieStore cookieStore;
+    private String fileName;
 
-    public Uploader(FileEntity fileEntity, String fileId, String fileSrc, CookieStore cookieStore, DefaultHttpClient client, String fileName) {
+    public Uploader(FileEntity fileEntity, String fileId, String clientId, CookieStore cookieStore, String fileName) {
         this.fileEntity = fileEntity;
         this.fileId = fileId;
-        this.fileSrc = fileSrc;
+        this.clientId = clientId;
         this.cookieStore = cookieStore;
-        this.client = client;
         this.fileName = fileName;
     }
 
     @Override
-    public void  run() {
+    public void run() {
         HttpPost request = null;
         CloseableHttpResponse response = null;
+        CloseableHttpClient client = null;
         try {
-            client.getParams().setIntParameter(CoreConnectionPNames.SO_TIMEOUT, 100000);
-            client.getParams().setIntParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 100000);
-            String uploadUrl = FileUploaderTest.url+  "/fs/largeUploader/asyncFileUploader?timestamp="+new Date().getTime();
+            String uploadUrl = FileUploaderTest.url + "/fs/largeUploader/asyncFileUploader?fileId=" + fileId + "&crc="+fileEntity.getFileCheckNum() + "&clientId="+clientId;
             request = new HttpPost(uploadUrl);
-                /*表单提交*/
-            MultipartEntity multipartEntity = new MultipartEntity();
-            multipartEntity.addPart("fileId",new StringBody(fileId, Charset.forName("UTF-8")));
-            multipartEntity.addPart("crc", new StringBody(fileEntity.getFileCheckNum(),Charset.forName("UTF-8")));
-            multipartEntity.addPart("file", new ByteArrayBody(fileEntity.getFileChunk(),fileName));
-            Map<String, String> requestMap = FileUploaderTest.requestMap();
-            for (String key : requestMap.keySet()) {
-                multipartEntity.addPart(key,new StringBody(requestMap.get(key),Charset.forName("UTF-8")));
-            }
-            request.setEntity(multipartEntity);
-            request.setHeader("Origin-Rang", fileEntity.getFileOffset()+"-" +fileEntity.getFileEnd() + "-"+fileEntity.getPartNumber());
-            this.client.setCookieStore(cookieStore);
-            response = this.client.execute(request);
-            if(200 == response.getStatusLine().getStatusCode()){
-                logger.info(Thread.currentThread().getName() + "\t开始上传"+fileId+"第:"+(fileEntity.getPartNumber()+1)+"个文件 over.");
-            }else{
+            RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout((int) FileUploaderTest.timeout).setConnectTimeout((int) FileUploaderTest.timeout).build();
+            request.setConfig(requestConfig);
+
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            builder.addBinaryBody("file",this.fileEntity.getFileChunk(), ContentType.DEFAULT_BINARY, this.fileName);
+            client = HttpClients.custom().setDefaultCookieStore(cookieStore).build();
+            request.setEntity(builder.build());
+            request.setHeader("Origin-Rang", fileEntity.getFileOffset() + "-" + fileEntity.getFileEnd() + "-" + fileEntity.getPartNumber());
+
+            response = client.execute(request);
+            if (200 == response.getStatusLine().getStatusCode()) {
+                logger.info(Thread.currentThread().getName() + "\t开始上传" + fileId + "第:" + (fileEntity.getPartNumber() + 1) + "个文件 over.");
+            } else {
                 HttpEntity entity = response.getEntity();
                 String resultString = "";
                 if (entity != null) {
                     resultString = EntityUtils.toString(entity, FileUploaderTest.CHARSET_NAME);
                 }
-                logger.error(resultString);
+                logger.error(Thread.currentThread().getName() + "\t" + resultString);
             }
-        }catch (Exception e){
-            logger.error(e.getMessage(),e);
-        }finally {
-            if(request != null){
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+        } finally {
+            if (request != null) {
                 request.abort();
             }
-            if(response != null){
-                try {
-                    response.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-
+            IOUtils.closeQuietly(client);
+            IOUtils.closeQuietly(response);
         }
     }
 }

@@ -1,5 +1,7 @@
 package uploderTest.entity;
 
+import org.apache.http.client.CookieStore;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.poem.entity.InitializationConfiguration;
 import org.poem.entity.LargeFileUploadResult;
@@ -14,16 +16,16 @@ import java.util.concurrent.ExecutorService;
 public class ConfigEntity extends Thread{
 
     private static final Logger logger = LoggerFactory.getLogger(ConfigEntity.class);
-    DefaultHttpClient client;
-    ExecutorService service;
-    public ConfigEntity( DefaultHttpClient client, ExecutorService service){
-        this.client = client;
+    private ExecutorService service;
+    private CookieStore cookieStore;
+    public ConfigEntity( ExecutorService service,CookieStore cookieStore){
         this.service = service;
+        this.cookieStore = cookieStore;
     }
 
     @Override
     public void run() {
-        InitializationConfiguration configuration =  FileUploaderTest.getConfig(client);
+        InitializationConfiguration configuration =  FileUploaderTest.getConfig(cookieStore);
         Map<String,LargeFileUploadResult> largeFileUploadResultMap = configuration.getLargeFileUploadResultMap();
         Integer i = 0;
         for (LargeFileUploadResult largeFileUploadResult : largeFileUploadResultMap.values()) {

@@ -60,6 +60,7 @@ public class LargeFileAsyncUploaderController {
      */
     @RequestMapping("/asyncFileUploader")
     public void asyncFileUploader(final HttpServletRequest httpServletRequest , final HttpServletResponse httpServletResponse){
+        container.populate(httpServletRequest,httpServletResponse);
         try{
             FileUploadConfiguration fileUploadConfiguration = this.largeFileUploaderHelper.extractFileUploadConfiguration(httpServletRequest);
             UUID fileId = fileUploadConfiguration.getFileId();
@@ -73,7 +74,6 @@ public class LargeFileAsyncUploaderController {
                 largeFileUploadResult.setError(false);
                 largeFileUploaderHelper.updateEntity(clientId.toString(),fileId.toString(),largeFileUploadResult);
             }
-
             /*开启同步策略*/
             final AsyncContext asyncContext = httpServletRequest.startAsync();
             asyncContext.setTimeout(DateUtils.MILLIS_PER_HOUR);
