@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.CRC32;
 
@@ -58,13 +59,13 @@ public class FileUploaderTest {
 
     private static final String clinetId;
 
-    private static String filePath = "C:\\Users\\yineng\\Desktop\\R0011368.docx";
+    private static String filePath = "C:\\Users\\yineng\\Desktop\\人事系统历史数据处理SQL.txt";
 
     private static ExecutorService executorService;
 
     static {
         clinetId = UUID.randomUUID().toString();
-        executorService = Executors.newFixedThreadPool(10);
+        executorService = Executors.newFixedThreadPool(1);
     }
 
     /**
@@ -266,7 +267,7 @@ public class FileUploaderTest {
      * 上传文件
      */
 
-    public static void uploadFile(CookieStore cookieStore) {
+    private static void uploadFile(CookieStore cookieStore) {
         logger.info(" ........ begin upload file to FS.  ........");
         InitializationConfiguration initializationConfiguration;
 
@@ -396,7 +397,8 @@ public class FileUploaderTest {
                         }
                     }
                     uploader = new Uploader(fileEntity, fileId,clinetId, cookieStore, file.getName());
-                    executorService.execute(uploader);
+                    //返回 java.utils.concurrent.Future<Void> 但是不做处理，等待上传完成进入下一步
+                    executorService.submit(uploader);
                 }
             }
         } catch (Exception e) {

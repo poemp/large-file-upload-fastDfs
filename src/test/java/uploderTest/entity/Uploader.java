@@ -16,8 +16,9 @@ import org.slf4j.LoggerFactory;
 import uploderTest.uploadTest.FileUploaderTest;
 
 import java.io.IOException;
+import java.util.concurrent.Callable;
 
-public class Uploader implements Runnable {
+public class Uploader implements Callable<Void> {
 
     private static final Logger logger = LoggerFactory.getLogger(Uploader.class);
 
@@ -37,7 +38,7 @@ public class Uploader implements Runnable {
     }
 
     @Override
-    public void run() {
+    public Void call() {
         HttpPost request = null;
         CloseableHttpResponse response = null;
         CloseableHttpClient client = null;
@@ -73,5 +74,6 @@ public class Uploader implements Runnable {
             IOUtils.closeQuietly(client);
             IOUtils.closeQuietly(response);
         }
+        return null;
     }
 }
