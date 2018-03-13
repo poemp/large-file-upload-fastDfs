@@ -52,6 +52,7 @@
         </dependency>
 
         <!-- fastDfs -->
+        <!--mvn install:install-file -DgroupId=org.csource -DartifactId=fastdfs-client -Dversion=5.02 -Dpackaging=jar -Dfile=D:\BaiduNetdiskDownload\fastdfs-client-5.02.jar-->
         <dependency>
             <groupId>org.csource</groupId>
             <artifactId>fastdfs-client</artifactId>

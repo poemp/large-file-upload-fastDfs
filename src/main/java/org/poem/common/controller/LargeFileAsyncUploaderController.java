@@ -55,24 +55,25 @@ public class LargeFileAsyncUploaderController {
 
     /**
      * 异步上传
+     *
      * @param httpServletRequest
      * @param httpServletResponse
      */
     @RequestMapping("/asyncFileUploader")
-    public void asyncFileUploader(final HttpServletRequest httpServletRequest , final HttpServletResponse httpServletResponse){
-        container.populate(httpServletRequest,httpServletResponse);
-        try{
+    public void asyncFileUploader(final HttpServletRequest httpServletRequest, final HttpServletResponse httpServletResponse) {
+        container.populate(httpServletRequest, httpServletResponse);
+        try {
             FileUploadConfiguration fileUploadConfiguration = this.largeFileUploaderHelper.extractFileUploadConfiguration(httpServletRequest);
             UUID fileId = fileUploadConfiguration.getFileId();
-            UUID clientId = largeFileUploaderHelper.getClientId(httpServletRequest,httpServletResponse);
+            UUID clientId = largeFileUploaderHelper.getClientId(httpServletRequest, httpServletResponse);
             InitializationConfiguration initializationConfiguration = largeFileUploaderHelper.getConfig(true);
-            ConcurrentHashMap<String,LargeFileUploadResult> largeFileUploadResultMap = initializationConfiguration.getLargeFileUploadResultMap();
+            ConcurrentHashMap<String, LargeFileUploadResult> largeFileUploadResultMap = initializationConfiguration.getLargeFileUploadResultMap();
             LargeFileUploadResult largeFileUploadResult = largeFileUploadResultMap.get(fileId.toString());
             LargeFileUploadChunkResult largeFileUploadChunkResult = largeFileUploadResult.getLargeFileUploadChunkResultMap().get(fileId + "@" + fileUploadConfiguration.getPartNumber());
-            if(null != largeFileUploadChunkResult){
+            if (null != largeFileUploadChunkResult) {
                 largeFileUploadChunkResult.setError(false);
                 largeFileUploadResult.setError(false);
-                largeFileUploaderHelper.updateEntity(clientId.toString(),fileId.toString(),largeFileUploadResult);
+                largeFileUploaderHelper.updateEntity(clientId.toString(), fileId.toString(), largeFileUploadResult);
             }
             /*开启同步策略*/
             final AsyncContext asyncContext = httpServletRequest.startAsync();
@@ -80,30 +81,30 @@ public class LargeFileAsyncUploaderController {
             asyncContext.addListener(new FileUploadAsyncListener(fileUploadConfiguration.getFileId()) {
                 @Override
                 public void clean(ServletRequest request) {
-                    container.populate((HttpServletRequest) request,httpServletResponse);
-                    try{
+                    container.populate((HttpServletRequest) request, httpServletResponse);
+                    try {
                         InitializationConfiguration initializationConfiguration = largeFileUploaderHelper.getConfig(true);
-                        ConcurrentHashMap<String,LargeFileUploadResult> largeFileUploadResultMap = initializationConfiguration.getLargeFileUploadResultMap();
+                        ConcurrentHashMap<String, LargeFileUploadResult> largeFileUploadResultMap = initializationConfiguration.getLargeFileUploadResultMap();
                         LargeFileUploadResult largeFileUploadResult = largeFileUploadResultMap.get(fileId.toString());
-                        ConcurrentHashMap<String, LargeFileUploadChunkResult> chunkResultConcurrentHashMap =  largeFileUploadResult.getLargeFileUploadChunkResultMap();
-                        long sum  = 0;
+                        ConcurrentHashMap<String, LargeFileUploadChunkResult> chunkResultConcurrentHashMap = largeFileUploadResult.getLargeFileUploadChunkResultMap();
+                        long sum = 0;
                         for (LargeFileUploadChunkResult largeFileUploadChunkResult : chunkResultConcurrentHashMap.values()) {
                             sum += largeFileUploadChunkResult.getStatus() ? largeFileUploadChunkResult.getLength() : 0;
                         }
-                        if(sum == largeFileUploadResult.getOriginalFileSizeInBytes()){
+                        if (sum == largeFileUploadResult.getOriginalFileSizeInBytes()) {
                             largeFileUploadResult.setFileComplete(true);
                             largeFileUploadResult.setStatus(new AtomicBoolean(true));
-                            largeFileUploadResultMap.put(fileId.toString(),largeFileUploadResult);
+                            largeFileUploadResultMap.put(fileId.toString(), largeFileUploadResult);
                             initializationConfiguration.setLargeFileUploadResultMap(largeFileUploadResultMap);
-                            largeFileUploaderHelper.updateEntity(clientId.toString(),initializationConfiguration);
+                            largeFileUploaderHelper.updateEntity(clientId.toString(), initializationConfiguration);
                         }
-                    }catch (Exception e){
+                    } catch (Exception e) {
                         FileUploadConfiguration fileUploadConfiguration = null;
                         try {
-                            fileUploadConfiguration =largeFileUploaderHelper.extractFileUploadConfiguration(httpServletRequest);
+                            fileUploadConfiguration = largeFileUploaderHelper.extractFileUploadConfiguration(httpServletRequest);
                             UUID fileId = fileUploadConfiguration.getFileId();
-                            UUID clientId = largeFileUploaderHelper.getClientId(httpServletRequest,httpServletResponse);
-                            largeFileUploaderHelper.processException(clientId,fileId,e);
+                            UUID clientId = largeFileUploaderHelper.getClientId(httpServletRequest, httpServletResponse);
+                            largeFileUploaderHelper.processException(clientId, fileId, e);
                         } catch (ParameterMissException e1) {
                             e1.printStackTrace();
                         } catch (FileUploadException e1) {
@@ -116,26 +117,28 @@ public class LargeFileAsyncUploaderController {
                     }
                 }
             });
-            FileUploader fileUploader = new FileUploader(clientId.toString(),fileUploadConfiguration, executorService, largeFileUploadResult, new WriteChunkCompletionListener() {
+            FileUploader fileUploader = new FileUploader(clientId.toString(), fileUploadConfiguration, executorService, largeFileUploadResult, new WriteChunkCompletionListener() {
                 @Override
-                public void start(){
-                    container.populate(httpServletRequest,httpServletResponse);
+                public void start() {
+                    container.populate(httpServletRequest, httpServletResponse);
                 }
+
                 @Override
                 public void error(Exception e) {
                     logger.error(e.getMessage());
-                    if (e.getMessage() != null){
-                        largeFileUploaderHelper.processException(clientId,fileId,e);
+                    if (e.getMessage() != null) {
+                        largeFileUploaderHelper.processException(clientId, fileId, e);
                     }
                     logger.info(Thread.currentThread().getName() + "\t\trequest complete by error");
                     asyncContext.complete();
                 }
+
                 @Override
                 public void success() {
                     logger.info(Thread.currentThread().getName() + "\t\trequest complete by success");
                     asyncContext.complete();
                 }
-            },largeFileUploaderHelper);
+            }, largeFileUploaderHelper);
             executorService.submit(fileUploader);
         } catch (Exception e) {
             e.printStackTrace();
@@ -143,8 +146,8 @@ public class LargeFileAsyncUploaderController {
             try {
                 fileUploadConfiguration = this.largeFileUploaderHelper.extractFileUploadConfiguration(httpServletRequest);
                 UUID fileId = fileUploadConfiguration.getFileId();
-                UUID clientId = largeFileUploaderHelper.getClientId(httpServletRequest,httpServletResponse);
-                largeFileUploaderHelper.processException(clientId,fileId,e);
+                UUID clientId = largeFileUploaderHelper.getClientId(httpServletRequest, httpServletResponse);
+                largeFileUploaderHelper.processException(clientId, fileId, e);
             } catch (ParameterMissException e1) {
                 e1.printStackTrace();
             } catch (FileUploadException e1) {
